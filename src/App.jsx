@@ -328,89 +328,153 @@ function MenuItem({item, onOpen, inCart}){
 
 // ── Map Picker ────────────────────────────────────────────
 function MapPicker({branch,onConfirm,onBack}){
-  const [step,setStep]=useState("map");
-  const [locating,setLoc]=useState(false);
-  const [locErr,setLocErr]=useState("");
-  const [coords,setCoords]=useState(null);
-  const [mapSrc,setMapSrc]=useState("");
-  const [searchVal,setSearch]=useState("");
-  const [detail,setDetail]=useState({floor:"",building:"",note:""});
-  const branchObj=BRANCHES.find(b=>b.id===branch);
-  const defLat=branchObj?branchObj.lat:13.7563,defLng=branchObj?branchObj.lng:100.5018;
-  const buildSrc=(lat,lng)=>`https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
-  useEffect(()=>{setMapSrc(buildSrc(defLat,defLng));},[]);
+  const [step,setStep]       = useState("address"); // address | detail
+  const [locating,setLoc]    = useState(false);
+  const [locErr,setLocErr]   = useState("");
+  const [coords,setCoords]   = useState(null);
+  const [addressText,setAddressText] = useState("");
+  const [mapUrl,setMapUrl]   = useState("");
+  const [detail,setDetail]   = useState({floor:"",building:"",note:""});
+  const inputRef = useRef(null);
+
   const useMyLoc=()=>{
-    setLocErr("");if(!navigator.geolocation){setLocErr("Geolocation not supported.");return;}
+    setLocErr("");
+    if(!navigator.geolocation){setLocErr("Geolocation not supported by your browser.");return;}
     setLoc(true);
     navigator.geolocation.getCurrentPosition(
-      p=>{const{latitude:lat,longitude:lng}=p.coords;setCoords({lat,lng});setMapSrc(buildSrc(lat,lng));setLoc(false);},
-      e=>{setLoc(false);setLocErr(e.code===1?"Location permission denied. Please allow access and try again.":"Could not get location. Search manually below.");},
-      {enableHighAccuracy:true,timeout:10000}
+      p=>{
+        const{latitude:lat,longitude:lng}=p.coords;
+        setCoords({lat,lng});
+        setAddressText(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        setMapUrl(`https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`);
+        setLoc(false);
+      },
+      e=>{
+        setLoc(false);
+        setLocErr(e.code===1
+          ?"Location denied — please allow access in your browser settings then try again."
+          :"Couldn't get your location. Please type your address below.");
+      },
+      {enableHighAccuracy:true,timeout:12000}
     );
   };
-  const handleSearch=()=>{if(!searchVal.trim())return;setMapSrc(`https://maps.google.com/maps?q=${encodeURIComponent(searchVal+" Thailand")}&z=15&output=embed`);setCoords({manual:true,label:searchVal});};
-  const locationLabel=coords?(coords.manual?coords.label:`${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`):null;
 
-  const Header=({title,back})=>(
-    <div style={{background:"#fff",padding:"0.85rem 1rem",display:"flex",alignItems:"center",gap:"0.75rem",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:50}}>
-      <button onClick={back} style={{background:"none",border:"none",fontSize:"1.3rem",color:"var(--text)"}}>←</button>
-      <div style={{fontWeight:700,fontSize:"1rem"}}>{title}</div>
-    </div>
-  );
+  const handleSearch=()=>{
+    const q=addressText.trim();
+    if(!q)return;
+    setCoords({manual:true,label:q});
+    setMapUrl(`https://maps.google.com/maps?q=${encodeURIComponent(q+" Bangkok Thailand")}&z=16&output=embed`);
+  };
 
+  const locationLabel = coords
+    ? (coords.manual ? coords.label : `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`)
+    : null;
+
+  // ── Step 2: detail form
   if(step==="detail") return(
     <div style={{minHeight:"100vh",background:"var(--bg)"}}>
-      <Header title="Add Address Details" back={()=>setStep("map")}/>
+      <div style={{background:"#fff",padding:"0.85rem 1rem",display:"flex",alignItems:"center",gap:"0.75rem",borderBottom:"1px solid var(--border)",position:"sticky",top:0,zIndex:50}}>
+        <button onClick={()=>setStep("address")} style={{background:"none",border:"none",fontSize:"1.3rem",color:"var(--text)"}}>←</button>
+        <div style={{fontWeight:700,fontSize:"1rem"}}>Add Address Details</div>
+      </div>
       <div style={{padding:"1rem",display:"flex",flexDirection:"column",gap:"0.85rem"}}>
+        {/* confirmed location chip */}
         <div style={{background:"var(--green-light)",border:"1px solid #b8ddb0",borderRadius:10,padding:"0.75rem 0.9rem",display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:"1.2rem"}}>📍</span>
           <div style={{flex:1}}>
             <div style={{fontSize:"0.7rem",fontWeight:700,color:"var(--green)",marginBottom:2}}>LOCATION SET</div>
-            <div style={{fontSize:"0.78rem",color:"var(--text)",lineHeight:1.4}}>{locationLabel||"Location selected"}</div>
+            <div style={{fontSize:"0.78rem",color:"var(--text)",lineHeight:1.4,wordBreak:"break-all"}}>{locationLabel}</div>
           </div>
-          <button onClick={()=>setStep("map")} style={{background:"none",border:"none",color:"var(--green)",fontSize:"0.78rem",fontWeight:600}}>Edit</button>
+          <button onClick={()=>setStep("address")} style={{background:"none",border:"none",color:"var(--green)",fontSize:"0.78rem",fontWeight:600,flexShrink:0}}>Edit</button>
         </div>
-        {[{key:"floor",label:"Floor / Unit Number",ph:"e.g. Floor 3, Room 302",type:"input",req:true},{key:"building",label:"Building / Condo",ph:"e.g. Oakwood Residence, Tower A",type:"input"},{key:"note",label:"Note to Rider",ph:"e.g. Use side entrance, call on arrival",type:"textarea"}].map(f=>(
+        {[
+          {key:"floor",   label:"Floor / Unit Number",      ph:"e.g. Floor 3, Room 302",            type:"input",   req:true},
+          {key:"building",label:"Building / Condo / House", ph:"e.g. Oakwood Residence, Tower A",   type:"input"},
+          {key:"note",    label:"Note to Rider",            ph:"e.g. Use side entrance, call first",type:"textarea"},
+        ].map(f=>(
           <div key={f.key}>
-            <div style={{fontSize:"0.63rem",fontWeight:700,letterSpacing:"2px",textTransform:"uppercase",color:"var(--muted)",marginBottom:5}}>{f.label}{f.req&&<span style={{color:"var(--red)"}}> *</span>}</div>
+            <div style={{fontSize:"0.63rem",fontWeight:700,letterSpacing:"2px",textTransform:"uppercase",color:"var(--muted)",marginBottom:5}}>
+              {f.label}{f.req&&<span style={{color:"var(--red)"}}> *</span>}
+            </div>
             {f.type==="textarea"
-              ?<textarea placeholder={f.ph} value={detail[f.key]} onChange={e=>setDetail(p=>({...p,[f.key]:e.target.value}))} rows={3} style={{width:"100%",padding:"0.65rem 0.8rem",border:"1.5px solid "+(detail[f.key]?"var(--green)":"var(--border)"),borderRadius:10,fontSize:"0.87rem",outline:"none",resize:"none",color:"var(--text)"}}/>
-              :<input placeholder={f.ph} value={detail[f.key]} onChange={e=>setDetail(p=>({...p,[f.key]:e.target.value}))} style={{width:"100%",padding:"0.65rem 0.8rem",border:"1.5px solid "+(detail[f.key]?"var(--green)":"var(--border)"),borderRadius:10,fontSize:"0.87rem",outline:"none",color:"var(--text)"}}/>
+              ?<textarea placeholder={f.ph} value={detail[f.key]} onChange={e=>setDetail(p=>({...p,[f.key]:e.target.value}))} rows={3}
+                  style={{width:"100%",padding:"0.65rem 0.8rem",border:"1.5px solid "+(detail[f.key]?"var(--green)":"var(--border)"),borderRadius:10,fontSize:"0.87rem",outline:"none",resize:"none",color:"var(--text)"}}/>
+              :<input placeholder={f.ph} value={detail[f.key]} onChange={e=>setDetail(p=>({...p,[f.key]:e.target.value}))}
+                  style={{width:"100%",padding:"0.65rem 0.8rem",border:"1.5px solid "+(detail[f.key]?"var(--green)":"var(--border)"),borderRadius:10,fontSize:"0.87rem",outline:"none",color:"var(--text)"}}/>
             }
           </div>
         ))}
-        <button onClick={()=>onConfirm({coords,locationLabel,...detail})} disabled={!detail.floor} style={{background:detail.floor?"var(--green)":"#ccc",color:"#fff",border:"none",padding:"0.92rem",borderRadius:100,fontWeight:700,fontSize:"0.95rem"}}>Confirm Address →</button>
-        {!detail.floor&&<div style={{fontSize:"0.72rem",color:"var(--muted)",textAlign:"center"}}>Floor / unit number is required</div>}
+        <button onClick={()=>onConfirm({coords,locationLabel,...detail})} disabled={!detail.floor}
+          style={{background:detail.floor?"var(--green)":"#ccc",color:"#fff",border:"none",padding:"0.92rem",borderRadius:100,fontWeight:700,fontSize:"0.95rem"}}>
+          Confirm Address →
+        </button>
+        {!detail.floor&&<div style={{fontSize:"0.72rem",color:"var(--muted)",textAlign:"center"}}>Floor / unit number is required to continue</div>}
       </div>
     </div>
   );
 
+  // ── Step 1: address picker
   return(
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column"}}>
-      <Header title="Choose Your Location" back={onBack}/>
-      <div style={{background:"#fff",borderBottom:"1px solid var(--border)",padding:"0.75rem 1rem"}}>
-        <button onClick={useMyLoc} disabled={locating} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:9,background:"var(--green-light)",border:"1.5px solid #b8ddb0",borderRadius:10,padding:"0.72rem",color:"var(--green)",fontWeight:700,fontSize:"0.88rem",opacity:locating?0.7:1}}>
-          <span style={{fontSize:"1.15rem"}}>{locating?"⏳":"🎯"}</span>{locating?"Getting your location…":"Use my current location"}
+      <div style={{background:"#fff",padding:"0.85rem 1rem",display:"flex",alignItems:"center",gap:"0.75rem",borderBottom:"1px solid var(--border)"}}>
+        <button onClick={onBack} style={{background:"none",border:"none",fontSize:"1.3rem",color:"var(--text)"}}>←</button>
+        <div style={{fontWeight:700,fontSize:"1rem"}}>Delivery Address</div>
+      </div>
+
+      {/* Use current location */}
+      <div style={{background:"#fff",padding:"0.9rem 1rem",borderBottom:"1px solid var(--border)"}}>
+        <button onClick={useMyLoc} disabled={locating} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:9,background:"var(--green-light)",border:"1.5px solid #b8ddb0",borderRadius:12,padding:"0.8rem",color:"var(--green)",fontWeight:700,fontSize:"0.9rem",opacity:locating?0.7:1}}>
+          <span style={{fontSize:"1.2rem"}}>{locating?"⏳":"🎯"}</span>
+          {locating?"Getting your location…":"Use my current location"}
         </button>
-        {locErr&&<div style={{marginTop:"0.55rem",fontSize:"0.75rem",color:"var(--red)",lineHeight:1.45,padding:"0.45rem 0.5rem",background:"#FFF0EE",borderRadius:7}}>{locErr}</div>}
+        {locErr&&<div style={{marginTop:"0.6rem",fontSize:"0.75rem",color:"var(--red)",lineHeight:1.5,padding:"0.5rem 0.6rem",background:"#FFF0EE",borderRadius:8}}>{locErr}</div>}
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"0.6rem 1rem",background:"#fff",borderBottom:"1px solid var(--border)"}}>
+
+      {/* Divider */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"0.7rem 1rem",background:"#fff",borderBottom:"1px solid var(--border)"}}>
         <div style={{flex:1,height:1,background:"var(--border)"}}/>
-        <span style={{fontSize:"0.72rem",color:"var(--muted)",fontWeight:600}}>OR SEARCH</span>
+        <span style={{fontSize:"0.72rem",color:"var(--muted)",fontWeight:600,letterSpacing:"1px"}}>OR TYPE YOUR ADDRESS</span>
         <div style={{flex:1,height:1,background:"var(--border)"}}/>
       </div>
-      <div style={{background:"#fff",borderBottom:"1px solid var(--border)",padding:"0.75rem 1rem",display:"flex",gap:"0.5rem"}}>
-        <input value={searchVal} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")handleSearch();}} placeholder="Area, street, building…" style={{flex:1,padding:"0.65rem 0.9rem",border:"1.5px solid var(--border)",borderRadius:10,fontSize:"0.87rem",outline:"none",background:"var(--bg)"}}/>
-        <button onClick={handleSearch} style={{background:"var(--green)",color:"#fff",border:"none",borderRadius:10,padding:"0 1rem",fontWeight:600,fontSize:"0.85rem"}}>Go</button>
+
+      {/* Text search */}
+      <div style={{background:"#fff",padding:"0.9rem 1rem",borderBottom:"1px solid var(--border)"}}>
+        <div style={{fontSize:"0.63rem",fontWeight:700,letterSpacing:"2px",textTransform:"uppercase",color:"var(--muted)",marginBottom:8}}>STREET / AREA / LANDMARK</div>
+        <div style={{display:"flex",gap:"0.5rem"}}>
+          <input
+            ref={inputRef}
+            value={addressText}
+            onChange={e=>{setAddressText(e.target.value);if(coords?.manual)setCoords(null);setMapUrl("");}}
+            onKeyDown={e=>{if(e.key==="Enter")handleSearch();}}
+            placeholder="e.g. Asok BTS, Sukhumvit 22, The Mall Bangkapi…"
+            style={{flex:1,padding:"0.7rem 0.9rem",border:"1.5px solid var(--border)",borderRadius:10,fontSize:"0.87rem",outline:"none",color:"var(--text)",background:"var(--bg)"}}
+          />
+          <button onClick={handleSearch} style={{background:"var(--green)",color:"#fff",border:"none",borderRadius:10,padding:"0 1.1rem",fontWeight:700,fontSize:"0.88rem",flexShrink:0}}>
+            Search
+          </button>
+        </div>
+        <div style={{fontSize:"0.7rem",color:"var(--muted)",marginTop:6}}>Type any area, BTS station, condo name or street then tap Search</div>
       </div>
-      <div style={{flex:1,minHeight:300,position:"relative"}}>
-        {mapSrc&&<iframe key={mapSrc} src={mapSrc} width="100%" height="300" style={{border:"none",display:"block"}} allowFullScreen loading="lazy"/>}
-        <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(255,255,255,0.92)",borderTop:"1px solid var(--border)",padding:"0.5rem 1rem",fontSize:"0.72rem",color:"var(--muted)",textAlign:"center"}}>Search or use current location, then confirm below</div>
-      </div>
-      <div style={{padding:"0.85rem 1rem",background:"#fff",borderTop:"1px solid var(--border)"}}>
-        {(coords||searchVal)
-          ?<button onClick={()=>{if(!coords&&searchVal)setCoords({manual:true,label:searchVal});setStep("detail");}} style={{width:"100%",background:"var(--green)",color:"#fff",border:"none",padding:"0.9rem",borderRadius:100,fontWeight:700,fontSize:"0.95rem"}}>This is my location → Add Details</button>
-          :<div style={{textAlign:"center",padding:"0.3rem",fontSize:"0.82rem",color:"var(--muted)"}}>Set your location above to continue</div>
+
+      {/* Map preview */}
+      {mapUrl&&(
+        <div style={{flex:1,position:"relative",minHeight:260}}>
+          <iframe key={mapUrl} src={mapUrl} width="100%" height="260" style={{border:"none",display:"block"}} allowFullScreen loading="lazy"/>
+          <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(255,255,255,0.9)",padding:"0.4rem 1rem",fontSize:"0.7rem",color:"var(--muted)",textAlign:"center",borderTop:"1px solid var(--border)"}}>
+            Showing map for your search — confirm if this looks right
+          </div>
+        </div>
+      )}
+
+      {/* Confirm button */}
+      <div style={{padding:"0.9rem 1rem",background:"#fff",borderTop:"1px solid var(--border)",marginTop:"auto"}}>
+        {coords
+          ?<button onClick={()=>setStep("detail")} style={{width:"100%",background:"var(--green)",color:"#fff",border:"none",padding:"0.9rem",borderRadius:100,fontWeight:700,fontSize:"0.95rem"}}>
+            Confirm Location → Add Details
+          </button>
+          :<div style={{textAlign:"center",padding:"0.3rem",fontSize:"0.82rem",color:"var(--muted)"}}>
+            Use your current location or type an address above to continue
+          </div>
         }
       </div>
     </div>
