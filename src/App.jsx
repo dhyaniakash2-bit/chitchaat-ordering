@@ -770,10 +770,10 @@ export default function App(){
         </div>
       </div>
 
-      {/* BASKET BAR */}
+      {/* BASKET BAR — fixed so it's always visible */}
       {count>0&&(
-        <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"0.7rem 1rem",zIndex:150,background:"transparent"}}>
-          <button onClick={()=>setPage("basket")} style={{width:"100%",background:"var(--green)",color:"#fff",border:"none",borderRadius:100,padding:"0.88rem 1.5rem",fontWeight:700,fontSize:"0.95rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 4px 20px rgba(27,94,22,0.45)"}}>
+        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,padding:"0.7rem 1rem",zIndex:400,pointerEvents:"all"}}>
+          <button onClick={()=>setPage("basket")} style={{width:"100%",background:"var(--green)",color:"#fff",border:"none",borderRadius:100,padding:"0.88rem 1.5rem",fontWeight:700,fontSize:"0.95rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 4px 24px rgba(27,94,22,0.5)"}}>
             <span style={{background:"rgba(255,255,255,0.22)",borderRadius:"50%",width:24,height:24,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.72rem",fontWeight:800}}>{count}</span>
             <span>View Basket</span>
             <span>฿{subtotal.toLocaleString()}</span>
