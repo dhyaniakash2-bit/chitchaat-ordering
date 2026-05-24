@@ -296,6 +296,36 @@ function AuthModal({onClose,onLogin}){
   );
 }
 
+// ── MenuItem (extracted so hooks are legal) ──────────────
+function MenuItem({item, onOpen, inCart}){
+  const d = FOOD_IMGS[item.id] || FOOD_IMGS[1];
+  const [imgErr, setImgErr] = useState(false);
+  return(
+    <div onClick={onOpen} style={{background:"#fff",borderRadius:12,padding:"0.9rem",display:"flex",gap:"0.8rem",alignItems:"center",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"pointer"}}>
+      <div style={{width:76,height:76,borderRadius:10,flexShrink:0,overflow:"hidden",background:d.bg,position:"relative"}}>
+        {!imgErr
+          ?<img src={d.url} alt={item.name} onError={()=>setImgErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          :<div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
+            <span style={{fontSize:28}}>{d.icon}</span>
+            <span style={{fontSize:"0.5rem",color:"rgba(255,255,255,0.8)",fontWeight:700,textTransform:"uppercase"}}>{d.label}</span>
+          </div>
+        }
+        {inCart>0&&<div style={{position:"absolute",top:4,right:4,background:"var(--green)",color:"#fff",borderRadius:"50%",width:18,height:18,fontSize:"0.6rem",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{inCart}</div>}
+      </div>
+      <div style={{flex:1,minWidth:0}}>
+        {item.badge&&<div style={{marginBottom:3}}><Badge label={item.badge}/></div>}
+        {item.veg!==undefined&&<div style={{marginBottom:3}}><VegDot veg={item.veg}/></div>}
+        <div style={{fontWeight:600,fontSize:"0.87rem",lineHeight:1.25,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
+        <div style={{fontSize:"0.72rem",color:"var(--muted)",lineHeight:1.4,marginBottom:6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{item.desc}</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontWeight:700,fontSize:"0.9rem"}}>฿{item.price}</span>
+          <button onClick={e=>{e.stopPropagation();onOpen();}} style={{width:29,height:29,borderRadius:"50%",border:"none",background:"var(--green)",color:"#fff",fontSize:"1.1rem",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Map Picker ────────────────────────────────────────────
 function MapPicker({branch,onConfirm,onBack}){
   const [step,setStep]=useState("map");
@@ -731,38 +761,9 @@ export default function App(){
             <div key={sec.id} ref={el=>sectionRefs.current[sec.id]=el} style={{paddingTop:"1.25rem"}}>
               <div style={{fontWeight:800,fontSize:"1rem",marginBottom:"0.85rem",color:"var(--text)"}}>{sec.label}</div>
               <div style={{display:"flex",flexDirection:"column",gap:"0.6rem"}}>
-                {sec.items.map((item,i)=>{
-                  const d=FOOD_IMGS[item.id]||FOOD_IMGS[1];
-                  const [imgErr,setImgErr]=useState(false);
-                  const inCart=cartQty(item.id);
-                  return(
-                    <div key={i} onClick={()=>setProductModal(item)} style={{background:"#fff",borderRadius:12,padding:"0.9rem",display:"flex",gap:"0.8rem",alignItems:"center",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",cursor:"pointer",transition:"transform .15s"}}
-                      onMouseEnter={e=>e.currentTarget.style.transform="translateY(-1px)"}
-                      onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}
-                    >
-                      <div style={{width:76,height:76,borderRadius:10,flexShrink:0,overflow:"hidden",background:d.bg,position:"relative"}}>
-                        {!imgErr
-                          ?<img src={d.url} alt={item.name} onError={()=>setImgErr(true)} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                          :<div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
-                            <span style={{fontSize:28}}>{d.icon}</span>
-                            <span style={{fontSize:"0.5rem",color:"rgba(255,255,255,0.8)",fontWeight:700,textTransform:"uppercase"}}>{d.label}</span>
-                          </div>
-                        }
-                        {inCart>0&&<div style={{position:"absolute",top:4,right:4,background:"var(--green)",color:"#fff",borderRadius:"50%",width:18,height:18,fontSize:"0.6rem",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{inCart}</div>}
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        {item.badge&&<div style={{marginBottom:3}}><Badge label={item.badge}/></div>}
-                        {item.veg!==undefined&&<div style={{marginBottom:3}}><VegDot veg={item.veg}/></div>}
-                        <div style={{fontWeight:600,fontSize:"0.87rem",lineHeight:1.25,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
-                        <div style={{fontSize:"0.72rem",color:"var(--muted)",lineHeight:1.4,marginBottom:6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{item.desc}</div>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                          <span style={{fontWeight:700,fontSize:"0.9rem"}}>฿{item.price}</span>
-                          <button onClick={e=>{e.stopPropagation();setProductModal(item);}} style={{width:29,height:29,borderRadius:"50%",border:"none",background:"var(--green)",color:"#fff",fontSize:"1.1rem",display:"flex",alignItems:"center",justifyContent:"center",transition:"background .18s"}}>+</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {sec.items.map((item,i)=>(
+                  <MenuItem key={i} item={item} onOpen={()=>setProductModal(item)} inCart={cartQty(item.id)}/>
+                ))}
               </div>
             </div>
           ))}
